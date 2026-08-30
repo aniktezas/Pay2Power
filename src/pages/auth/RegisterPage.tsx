@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Zap, Mail, Lock, User, Eye, EyeOff, Building2, ShoppingCart } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';

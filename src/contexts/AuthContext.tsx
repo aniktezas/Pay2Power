@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authService, type AuthUser } from '../services/auth.service';
 
 interface AuthContextValue {
@@ -16,9 +16,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Restore session on mount
   useEffect(() => {
     authService.getSession().then(u => {
       setUser(u);
+      setLoading(false);
+    }).catch(() => {
       setLoading(false);
     });
   }, []);

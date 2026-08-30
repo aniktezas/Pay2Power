@@ -20,12 +20,12 @@ export function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      const user = await login(email, password);
-      // Wait a tick for state to settle
+      await login(email, password);
+      toast.success('Signed in successfully!');
+      // role is determined by email in demo mode — navigate after a tick
       setTimeout(() => {
-        const userRole = (user as any)?.profile?.role;
-        if (userRole === 'consumer') navigate('/consumer/dashboard');
-        else navigate('/owner/dashboard');
+        const isConsumer = email.toLowerCase().includes('consumer');
+        navigate(isConsumer ? '/consumer/dashboard' : '/owner/dashboard');
       }, 100);
     } catch (err: any) {
       setError(err.message ?? 'Login failed');
