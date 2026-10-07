@@ -241,6 +241,42 @@ export function DevicePage() {
               ⚡ Both time and energy limits are being tracked. Electricity stops at whichever is reached first.
             </p>
           </div>
+
+          <div className="space-y-2 pt-1">
+            <Button
+              variant="danger"
+              fullWidth
+              onClick={async () => {
+                if (!activeSession || !device) return;
+                try {
+                  const sim = getSimulator(device.id, device.device_code);
+                  const elapsed = Math.floor((Date.now() - new Date(activeSession.started_at).getTime()) / 1000);
+                  const energy = sim.getSessionEnergyConsumed();
+                  sim.turnOff();
+                  await sessionService.endSession(
+                    activeSession.id,
+                    device.id,
+                    activeSession.user_id,
+                    elapsed,
+                    energy,
+                    'MANUAL_STOP'
+                  );
+                  setTerminationReason('Session stopped manually');
+                  setPageState('terminated');
+                  toast.success('Session stopped. Power turned OFF.');
+                } catch (err: any) {
+                  toast.error(err.message ?? 'Failed to stop session');
+                }
+              }}
+            >
+              Stop Electricity & End Session
+            </Button>
+            <Link to={user?.profile?.role === 'owner' ? '/owner/dashboard' : '/consumer/dashboard'}>
+              <Button variant="ghost" fullWidth className="mt-1">
+                ← Return to Dashboard
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     );
@@ -251,13 +287,21 @@ export function DevicePage() {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
       <div className="max-w-sm w-full space-y-4">
         {/* Brand header */}
-        <div className="text-center">
-          <Link to="/" className="inline-flex items-center gap-2 mb-3">
+        <div className="flex items-center justify-between mb-1">
+          <Link to="/" className="inline-flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-sky-500 flex items-center justify-center">
               <Zap size={13} className="text-white" fill="white" />
             </div>
-            <span className="font-bold text-slate-100">SmartPay<span className="text-sky-400">Switch</span></span>
+            <span className="font-bold text-slate-100 text-sm">SmartPay<span className="text-sky-400">Switch</span></span>
           </Link>
+          {user && (
+            <Link 
+              to={user.profile?.role === 'owner' ? '/owner/dashboard' : '/consumer/dashboard'}
+              className="text-xs text-sky-400 hover:text-sky-300 font-medium"
+            >
+              Dashboard →
+            </Link>
+          )}
         </div>
 
         {/* Device info */}

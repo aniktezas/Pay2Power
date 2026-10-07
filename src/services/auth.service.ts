@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // SmartPay Switch — Auth Service
 // Wraps Supabase Auth. Falls back to mock in demo mode.
 // ============================================================
@@ -7,11 +7,26 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import type { Profile, UserRole } from '../types';
 
 const DEMO_USER_KEY = 'smartpay_demo_user';
+const REGISTERED_USERS_KEY = 'smartpay_registered_users';
 
 export interface AuthUser {
   id: string;
   email: string;
   profile?: Profile;
+}
+
+interface StoredUser extends AuthUser {
+  password?: string;
+}
+
+function getStoredUsers(): StoredUser[] {
+  const stored = localStorage.getItem(REGISTERED_USERS_KEY);
+  if (!stored) return [];
+  try { return JSON.parse(stored); } catch { return []; }
+}
+
+function saveStoredUsers(users: StoredUser[]): void {
+  localStorage.setItem(REGISTERED_USERS_KEY, JSON.stringify(users));
 }
 
 function getDemoUser(): AuthUser | null {
@@ -47,17 +62,29 @@ export const authService = {
     role: UserRole
   ): Promise<AuthUser> {
     if (!isSupabaseConfigured) {
-      // Demo mode: create a mock user
-      const user: AuthUser = {
-        id: 'demo-' + Math.random().toString(36).slice(2),
+      // Demo mode: create a mock user and persist to registered users list
+      const userId = 'demo-' + Math.random().toString(36).slice(2, 9);
+      const user: StoredUser = {
+        id: userId,
         email,
+        password,
         profile: {
-          id: 'demo-' + Math.random().toString(36).slice(2),
+          id: userId,
           full_name: fullName,
           role,
           created_at: new Date().toISOString(),
         },
       };
+
+      const users = getStoredUsers();
+      const existingIdx = users.findIndex(u => u.email.toLowerCase() === email.toLowerCase());
+      if (existingIdx !== -1) {
+        users[existingIdx] = user;
+      } else {
+        users.push(user);
+      }
+      saveStoredUsers(users);
+
       localStorage.setItem(DEMO_USER_KEY, JSON.stringify(user));
       return user;
     }
@@ -80,21 +107,26 @@ export const authService = {
     };
   },
 
-  async login(email: string, password: string): Promise<AuthUser> {
+  async login(email: string, password: string, roleHint?: UserRole): Promise<AuthUser> {
     if (!isSupabaseConfigured) {
-      const demo = getDemoUser();
-      if (demo && demo.email === email) return demo;
-      // Auto-create demo owner for easy demo
+      const users = getStoredUsers();
+      const existing = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+      let role: UserRole = roleHint || (existing?.profile?.role) || (email.toLowerCase().includes('consumer') ? 'consumer' : 'owner');
+      let fullName = existing?.profile?.full_name || email.split('@')[0];
+      let userId = existing?.id || (role === 'owner' ? 'demo-owner-001' : 'demo-consumer-001');
+
       const user: AuthUser = {
-        id: 'demo-owner-001',
+        id: userId,
         email,
         profile: {
-          id: 'demo-owner-001',
-          full_name: email.split('@')[0],
-          role: email.includes('consumer') ? 'consumer' : 'owner',
-          created_at: new Date().toISOString(),
+          id: userId,
+          full_name: fullName,
+          role,
+          created_at: existing?.profile?.created_at || new Date().toISOString(),
         },
       };
+
       localStorage.setItem(DEMO_USER_KEY, JSON.stringify(user));
       return user;
     }
@@ -125,7 +157,6 @@ export const authService = {
 
   async forgotPassword(email: string): Promise<void> {
     if (!isSupabaseConfigured) {
-      // Mock: just pretend it worked
       return;
     }
     const { error } = await supabase.auth.resetPasswordForEmail(email);

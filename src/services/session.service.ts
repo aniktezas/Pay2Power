@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // SmartPay Switch — Session Service
 // Manages active usage sessions with hybrid billing.
 // ============================================================
@@ -49,8 +49,10 @@ export const sessionService = {
 
     if (!isSupabaseConfigured) {
       const sessions = getMockSessions(userId);
-      sessions.unshift(session);
-      saveMockSessions(userId, sessions);
+      // Mark any other active session for this user/device as completed
+      const updated = sessions.map(s => (s.status === 'active' && s.device_id === deviceId) ? { ...s, status: 'completed' as const } : s);
+      updated.unshift(session);
+      saveMockSessions(userId, updated);
       localStorage.setItem(ACTIVE_SESSION_KEY + '_' + deviceId, JSON.stringify(session));
       return session;
     }
@@ -70,14 +72,33 @@ export const sessionService = {
     if (!isSupabaseConfigured) {
       const stored = localStorage.getItem(ACTIVE_SESSION_KEY + '_' + deviceId);
       if (!stored) return null;
-      try { return JSON.parse(stored); } catch { return null; }
+      try { 
+        const parsed = JSON.parse(stored);
+        return parsed?.status === 'active' ? parsed : null;
+      } catch { return null; }
     }
     const { data } = await supabase
       .from('usage_sessions')
       .select('*')
       .eq('device_id', deviceId)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
+    return data;
+  },
+
+  async getUserActiveSession(userId: string): Promise<UsageSession | null> {
+    if (!isSupabaseConfigured) {
+      const sessions = getMockSessions(userId);
+      return sessions.find(s => s.status === 'active') ?? null;
+    }
+    const { data } = await supabase
+      .from('usage_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
     return data;
   },
 
@@ -119,12 +140,14 @@ export const sessionService = {
   },
 
   async getSessionHistory(userId: string): Promise<UsageSession[]> {
-    if (!isSupabaseConfigured) return getMockSessions(userId).filter(s => s.status !== 'active');
+    if (!isSupabaseConfigured) {
+      // Return all sessions for this user so active session also shows up
+      return getMockSessions(userId);
+    }
     const { data, error } = await supabase
       .from('usage_sessions')
       .select('*')
       .eq('user_id', userId)
-      .neq('status', 'active')
       .order('started_at', { ascending: false });
     if (error) throw new Error(error.message);
     return data ?? [];

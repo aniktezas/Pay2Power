@@ -1,13 +1,14 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { authService, type AuthUser } from '../services/auth.service';
+import type { UserRole } from '../types';
 
 interface AuthContextValue {
   user: AuthUser | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, fullName: string, role: 'owner' | 'consumer') => Promise<void>;
+  login: (email: string, password: string, roleHint?: UserRole) => Promise<AuthUser>;
+  register: (email: string, password: string, fullName: string, role: UserRole) => Promise<AuthUser>;
   logout: () => Promise<void>;
-  role: 'owner' | 'consumer' | null;
+  role: UserRole | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -26,14 +27,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  async function login(email: string, password: string) {
-    const u = await authService.login(email, password);
+  async function login(email: string, password: string, roleHint?: UserRole): Promise<AuthUser> {
+    const u = await authService.login(email, password, roleHint);
     setUser(u);
+    return u;
   }
 
-  async function register(email: string, password: string, fullName: string, role: 'owner' | 'consumer') {
+  async function register(email: string, password: string, fullName: string, role: UserRole): Promise<AuthUser> {
     const u = await authService.register(email, password, fullName, role);
     setUser(u);
+    return u;
   }
 
   async function logout() {

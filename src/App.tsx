@@ -54,7 +54,6 @@ export default function App() {
               <Route path="/owner/devices/:id/pricing" element={<PricingPage />} />
               <Route path="/owner/analytics" element={<AnalyticsPage />} />
               <Route path="/owner/ai-alerts" element={<AIAlertsPage />} />
-              <Route path="/transactions" element={<TransactionsPage />} />
             </Route>
           </Route>
 
@@ -63,6 +62,12 @@ export default function App() {
             <Route element={<AppLayout />}>
               <Route path="/consumer/dashboard" element={<ConsumerDashboardPage />} />
               <Route path="/consumer/wallet" element={<WalletPage />} />
+            </Route>
+          </Route>
+
+          {/* Protected — Shared for both roles */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AppLayout />}>
               <Route path="/transactions" element={<TransactionsPage />} />
             </Route>
           </Route>

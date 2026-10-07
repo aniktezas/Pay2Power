@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // SmartPay Switch — Device Service
 // ============================================================
 
@@ -74,6 +74,18 @@ function getDefaultPricing(): Record<string, Pricing> {
 // ---- Service ----
 
 export const deviceService = {
+  async getAllDevices(): Promise<Device[]> {
+    if (!isSupabaseConfigured) {
+      return getMockDevices();
+    }
+    const { data, error } = await supabase
+      .from('devices')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data ?? [];
+  },
+
   async getDevices(ownerId: string): Promise<Device[]> {
     if (!isSupabaseConfigured) {
       return getMockDevices().filter(d => d.owner_id === ownerId || ownerId.startsWith('demo'));
